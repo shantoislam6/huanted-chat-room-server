@@ -1,0 +1,23 @@
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "@hono/zod-validator": "npm:@hono/zod-validator",
+    "dayjs": "https://cdn.skypack.dev/dayjs",
+    "dayjs/plugin/utc.js": "https://cdn.skypack.dev/dayjs/plugin/utc.js",
+    "hono": "jsr:@hono/hono@^4.6.6",
+    "@hono/node-server": "npm:@hono/node-server",
+    "zod": "https://deno.land/x/zod/mod.ts",
+    "socket.io": "npm:socket.io",
+    "dotenv": "jsr:@std/dotenv/load"
+  },
+  "tasks": {
+    "start": "deno run --allow-env --allow-net --allow-read --allow-import main.ts",
+    "dev": "deno run --allow-env --allow-net --allow-read --allow-import --watch main.ts",
+    "test:dev": "deno test --allow-net --allow-read --allow-env --watch"
+  },
+
+  "compilerOptions": {
+    "jsx": "precompile",
+    "jsxImportSource": "hono/jsx"
+  }
+}
