@@ -30,6 +30,12 @@ export const handleConnection = async (
 
   io.emit('join', members);
 
+  io.emit('welcome', {
+    uuid: socket.data.uuid,
+    username: socket.data.username,
+    joined_at: socket.data.joined_at,
+  });
+
   // deno-lint-ignore no-explicit-any
   socket.on('chat message', (pyload: any) => {
     io.emit('chat message', {
