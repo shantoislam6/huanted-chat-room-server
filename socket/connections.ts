@@ -2,12 +2,9 @@ import { TSocketIO, TSocket } from './types.ts';
 
 import { dateTime } from '../lib/time.ts';
 
-export const handleConnection = async (
-  io: TSocketIO,
-  socket: TSocket
-): Promise<void> => {
-  console.log(`Client connected: ${socket.id}`);
+const hauntedRoom = 'haunted-chat-room';
 
+export const handleConnection = (io: TSocketIO, socket: TSocket): void => {
   const username = socket.handshake.query.username ?? 'Anonymouse';
   const uuid = socket.handshake.query.uuid ?? crypto.randomUUID();
 
@@ -20,43 +17,54 @@ export const handleConnection = async (
     [key: string]: any;
   } = {};
 
-  // deno-lint-ignore no-explicit-any
-  (await io.fetchSockets()).forEach((socketItem: any) => {
-    members[socketItem.data.uuid] = {
-      ...socketItem.data,
-      clientID: socketItem.id,
-    };
-  });
+  socket.join(hauntedRoom);
 
-  io.emit('join', members);
-
-  io.emit('welcome', {
-    uuid: socket.data.uuid,
-    username: socket.data.username,
-    joined_at: socket.data.joined_at,
+  socket.on('act', async (id: string) => {
+    if (id === socket.id) {
+      // deno-lint-ignore no-explicit-any
+      (await io.to(hauntedRoom).fetchSockets()).forEach((socketItem: any) => {
+        members[socketItem.data.uuid] = {
+          ...socketItem.data,
+          clientID: socketItem.id,
+        };
+      });
+      //
+      console.log(
+        `Client connected: ${socket.id}, Username: ${username}, Uuid: ${uuid}, IntialRoom`
+      );
+      io.to(hauntedRoom).emit('join', members);
+    }
   });
 
   // deno-lint-ignore no-explicit-any
   socket.on('chat message', (pyload: any) => {
-    io.emit('chat message', {
-      value: pyload.value,
-      clientID: socket.id,
-      username: username,
-      uuid: uuid,
-      time: dateTime().utc().toISOString(),
-    });
-    socket.broadcast.emit('typing', {
-      value: '',
-      uuid: uuid,
-      username: username,
-      type: 'remove',
-      clientID: socket.id,
-    });
+    const messageValue = pyload.value?.trim();
+    const lengthCond = messageValue.length <= 500;
+
+    if (messageValue !== '' && lengthCond) {
+      const message = {
+        value: messageValue,
+        clientID: socket.id,
+        username: username,
+        uuid: uuid,
+        time: dateTime().utc().toISOString(),
+      };
+
+      io.to(hauntedRoom).emit('chat message', message);
+
+      socket.to(hauntedRoom).emit('typing', {
+        value: '',
+        uuid: uuid,
+        username: username,
+        type: 'remove',
+        clientID: socket.id,
+      });
+    }
   });
 
   // deno-lint-ignore no-explicit-any
   socket.on('typing', (value: any) => {
-    socket.broadcast.emit('typing', {
+    socket.to(hauntedRoom).emit('typing', {
       value: value,
       type: 'typing',
       username: username,
@@ -66,7 +74,7 @@ export const handleConnection = async (
   });
 
   socket.on('typingCancel', () => {
-    io.emit('typing', {
+    socket.to(hauntedRoom).emit('typing', {
       value: '',
       type: 'remove',
       username: username,
@@ -77,7 +85,7 @@ export const handleConnection = async (
 
   // deno-lint-ignore no-explicit-any
   socket.on('disconnect', async (reason: any) => {
-    io.emit('typing', {
+    socket.to(hauntedRoom).emit('typing', {
       value: '',
       type: 'remove',
       username: username,
@@ -90,7 +98,7 @@ export const handleConnection = async (
       [key: string]: any;
     } = {};
     // deno-lint-ignore no-explicit-any
-    (await io.fetchSockets()).forEach((socketItem: any) => {
+    (await io.to(hauntedRoom).fetchSockets()).forEach((socketItem: any) => {
       if (socket.id !== socketItem.id) {
         members[socketItem.data.uuid] = {
           ...socketItem.data,
@@ -98,10 +106,7 @@ export const handleConnection = async (
         };
       }
     });
-
-    // console.log(members);
-    io.emit('join', members);
-
+    socket.to(hauntedRoom).emit('join', members);
     console.log(`Public client disconnected: ${socket.id}, Reason: ${reason}`);
   });
 };
